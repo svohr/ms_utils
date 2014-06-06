@@ -25,6 +25,8 @@ def translate_pos( positions, length ):
     return [ int( float(pos) * length ) for pos in positions ]  
 
 def seg_sites_to_psmc_seq( base_pos, length ):
+    """ Converts a list of segregating positions to a sequence indicating
+    whether a window of 100bp is homozygous or heterozygous. """
     het_windows = set( [ pos / 100 for pos in base_pos ] )
     seq = list( 'T' * (length / 100 ) )
     for window in het_windows:
@@ -53,7 +55,10 @@ def process_ms_results( out, ms_file, concat=False):
         fasta.write_seq( out, 'sim_concat', '', ''.join(full_seq) )
 
 def main(argv=None):
-    
+    """ 
+    Generates PSMC input sequence in FASTA format from a diploid ms
+    simulation run.
+    """
     if argv is None:
         argv = sys.argv
 
