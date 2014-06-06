@@ -1,17 +1,20 @@
 #! /usr/bin/python
-#
-# This script calculates the d-statistic for every pairwise combination 
-# in the ms file.
-#
-# The ms simulation's model samples from 3 populations
-# 1. unadmixed (African) population
-# 2. admixed (non-African) population
-# 3. a single introgressor (Neandertal) haplotype
-#
-# The ancestral state is 0.
-#
-# Sam Vohr (svohr@soe.ucsc.edu)
-# October 25, 2012
+"""
+ms_dstat
+
+This script calculates the d-statistic for every pairwise combination 
+in the ms file.
+
+The ms simulation's model samples from 3 populations
+1. unadmixed (African) population
+2. admixed (non-African) population
+3. a single introgressor (Neandertal) haplotype
+
+The ancestral state is 0.
+
+Sam Vohr (svohr@soe.ucsc.edu)
+October 25, 2012
+"""
 
 import optparse
 import sys

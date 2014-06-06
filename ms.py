@@ -1,9 +1,11 @@
-#! /usr/bin/python
-# 
-# This module is for reading the simulation results from ms.
-#
-# Sam Vohr (svohr@ucsc.edu)
-# October 21, 2012
+"""
+ms.py 
+
+This module is for reading the simulation results from ms.
+
+Sam Vohr (svohr@ucsc.edu)
+October 21, 2012
+"""
 
 import collections
 

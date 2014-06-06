@@ -1,0 +1,82 @@
+#! /usr/bin/python
+"""
+ms2psmc
+
+This script converts the output of an ms simulation into input for PSMC
+formatted as a fasta file. 
+
+PSMC input is formatted as a fasta sequence where each character represents 
+a 100 bp window. The 3 characters used are 'N' for no data, 'T' for 
+invididual is homozygous across this window and 'K' if the individual is
+heterozygous.
+
+Sam Vohr (svohr@soe.ucsc.edu)
+Thu Jun  5 12:11:19 PDT 2014
+"""
+
+import argparse
+import sys
+import ms
+import fasta
+
+def translate_pos( positions, length ):
+    """ Converts the relative positions into base positions given the length
+        of the locus. Double hits are OK in this case. """
+    return [ int( float(pos) * length ) for pos in positions ]  
+
+def seg_sites_to_psmc_seq( base_pos, length ):
+    het_windows = set( [ pos / 100 for pos in base_pos ] )
+    seq = list( 'T' * (length / 100 ) )
+    for window in het_windows:
+        seq[window] = 'K'
+    return ''.join( seq )
+    
+
+def process_ms_results( out, ms_file, concat=False):
+    """ Calculate and write the frequencies for all replicates """
+    # number of bases is specified '-r [rho] [nsites]'
+    seg_len = int( ms_file.args['r'][0].split()[1] )
+    full_seq = list()
+    ms_sample = ms_file.next_sim()
+    sim_num = 1
+    while ms_sample is not None:
+        site_pos = translate_pos( ms_sample.pos, seg_len )
+        psmc_seq = seg_sites_to_psmc_seq( site_pos, seg_len )
+        if concat is True:
+            full_seq.append(psmc_seq)
+        else:
+            # just write it now
+            fasta.write_seq( out, 'sim%d' % (sim_num), '', psmc_seq )
+        ms_sample = ms_file.next_sim()
+        sim_num += 1
+    if concat is True:
+        fasta.write_seq( out, 'sim_concat', '', ''.join(full_seq) )
+
+def main(argv=None):
+    
+    if argv is None:
+        argv = sys.argv
+
+    usage = 'ms2psmc [OPTIONS] [ms_output_file]'
+    parser = argparse.ArgumentParser(usage)
+    parser.add_argument('ms_file', metavar='MS_FILE', nargs='?' )
+    parser.add_argument('-c', '--concat', dest='concat', default=False, \
+                        action='store_true', \
+                        help='Concatenate sequence from all simulations.')
+    args = parser.parse_args()
+
+    # Read from standard in by default.
+    ms_in = sys.stdin
+
+    if args.ms_file is not None:
+        ms_in = open(args.ms_file,'r')
+
+    ms_file = ms.MSResult( ms_in )
+    process_ms_results( sys.stdout, ms_file, args.concat )
+
+    ms_in.close()
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+

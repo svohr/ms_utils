@@ -1,13 +1,13 @@
 #! /usr/bin/env python
-#
-# ms2rehh
-#
-# Takes ths output from ms simulation and converts it to the format used by
-# REHH. 
-#
-# Sam Vohr (svohr@soe.ucsc.edu)
-# August 2012
-#
+"""
+ms2rehh
+
+Takes ths output from ms simulation and converts it to the format used by
+REHH. 
+
+Sam Vohr (svohr@soe.ucsc.edu)
+August 2012
+"""
 
 import optparse
 import re
