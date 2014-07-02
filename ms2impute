@@ -1,6 +1,19 @@
 #! /usr/bin/python
+
 """
-ms_impute2
+
+ms2impute
+
+This script processes the output of an ms simulation into two inpute files 
+for IMPUTE: one containing the haplotype matrix and the another one with 
+the legend table.
+
+The haplotype matrix displays the state of each segregating site (rows) 
+in the sampled chromosomes (columns). If more than one different sample
+is processed (nreps > 1), more rows are added to the matrix.
+
+Carlos F Buen Abad N
+Latest update: Wed Jul 2 2014, 14:00 PDT
 
 """
 
@@ -19,21 +32,29 @@ def impute_haplotype_transposer( ms_sample, indv ):
     haplotype_st = "\n".join( haplotype ) + "\n"
     return haplotype_st
     
-def translate_pos( positions, length ):
-    """ Check something to avoid double hits. """
-    return [ int( float(pos) * length ) for pos in positions ] 
+def translate_pos( ms_positions, length ):
+    if len(ms_positions) > length: #if there are more positions that base pairs,
+        length = len(ms_positions) #it increases the number of base pairs
+    trans_pos = [ int( float(pos) * length ) for pos in ms_positions ] 
+    for position in trans_pos: #cleans double hits
+        nxt = trans_pos.index(position)
+        for next_pos in trans_pos[(trans_pos.index(position) + 1) :]:
+            nxt += 1
+            if next_pos == position:
+                trans_pos[nxt] = position + 1
+    return trans_pos
 
-def impute_legend ( out, pos, sim_num ):
-    largo = len( pos )
+def impute_legend ( trans_pos, sim_num ):
+    largo = len( trans_pos )
     mult = sim_num - 1
     legend = ""
     for i in range( largo ):
         id_number = ( i+1 )
-        position = str(( 10000000 * mult ) + pos[i])
-        legend += 'sim%d_seg%d' %( sim_num, id_number ) + " " + position + " A T\n" 
+        position = str(( 10000000 * mult ) + trans_pos[i])
+        legend += 'sim%d_seg%d' % ( sim_num, id_number ) + " " + position + " A T\n" 
     return legend
 
-def process_ms_results( out, ms_file, file_names, printer ):
+def process_ms_results( out, ms_file, f_names, printer ):
     # number of bases is specified '-r [rho] [nsites]'
     seg_len = int( ms_file.args['r'][0].split()[1] )
     ms_sample = ms_file.next_sim()
@@ -43,19 +64,19 @@ def process_ms_results( out, ms_file, file_names, printer ):
     legend = "ID pos allele0 allele1\n"
     sim_num = 1
     while ms_sample is not None:
-        site_pos = translate_pos( ms_sample.pos, seg_len )
+        trans_pos = translate_pos( ms_sample.pos, seg_len )
         haplotype += impute_haplotype_transposer( ms_sample, indv )
-        legend += impute_legend ( out, site_pos, sim_num )
+        legend += impute_legend ( trans_pos, sim_num )
         ms_sample = ms_file.next_sim()
         sim_num += 1
-    f1 = file_names[0]
-    f2 = file_names[1]
-    file = open(f1, "w")
-    file.write(haplotype)
-    file.close()
-    file = open(f2, "w")
-    file.write(legend)
-    file.close()
+    f_name1 = f_names[0]
+    f_name2 = f_names[1]
+    file1 = open(f_name1, "w")
+    file1.write(haplotype)
+    file1.close()
+    file2 = open(f_name2, "w")
+    file2.write(legend)
+    file2.close()
     if printer is True:
         out.write(haplotype)
         out.write("\n")
@@ -69,10 +90,11 @@ def main(argv=None):
     usage = 'ms_impute [OPTIONS] [ms_output_file]'
     parser = optparse.OptionParser(usage=usage)
     
-    parser.add_option('-f', '--file', nargs=2, default='impute.hap.txt' 'impute.legend.txt', dest='filenames', 
+    parser.add_option('-f', '--file', nargs=2, 
+                      default='impute.hap.txt' 'impute.legend.txt', dest='filenames', 
                       help='Name of the impute haplotype and the impute legend file.')
-    parser.add_option('-p', action='store_true', dest='printer', default='False', 
-                      help='Prints the impute haplotype matrix and the legend. Default = False')
+    parser.add_option('-p', action='store_true', dest='printer', 
+                      default='False', help='Prints the impute haplotype matrix and the legend. Default = False')
 
     (options, args) = parser.parse_args()
 
@@ -84,10 +106,10 @@ def main(argv=None):
 
     ms_file = ms.MSResult( ms_in )
 
-    file_names = options.filenames
+    f_names = options.filenames
     printer = options.printer
 
-    process_ms_results( sys.stdout, ms_file, file_names, printer )
+    process_ms_results( sys.stdout, ms_file, f_names, printer )
 
     ms_in.close()
     return 0
