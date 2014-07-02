@@ -1,0 +1,99 @@
+#! /usr/bin/python
+"""
+ms_impute2
+
+"""
+
+import optparse
+import sys
+import ms
+
+def impute_haplotype_transposer( ms_sample, indv ):
+    haplotype = list()
+    for site in range( ms_sample.nsites ):
+        hap = list()
+        for i in indv:
+            hap.append( ms_sample.genotypes[i][site] )
+        hap_st = ' '.join( hap )
+        haplotype.append( hap_st )
+    haplotype_st = "\n".join( haplotype ) + "\n"
+    return haplotype_st
+    
+def translate_pos( positions, length ):
+    """ Check something to avoid double hits. """
+    return [ int( float(pos) * length ) for pos in positions ] 
+
+def impute_legend ( out, pos, sim_num ):
+    largo = len( pos )
+    mult = sim_num - 1
+    legend = ""
+    for i in range( largo ):
+        id_number = ( i+1 )
+        position = str(( 10000000 * mult ) + pos[i])
+        legend += 'sim%d_seg%d' %( sim_num, id_number ) + " " + position + " A T\n" 
+    return legend
+
+def process_ms_results( out, ms_file, file_names, printer ):
+    # number of bases is specified '-r [rho] [nsites]'
+    seg_len = int( ms_file.args['r'][0].split()[1] )
+    ms_sample = ms_file.next_sim()
+    pops = ms_file.pop_sizes()
+    indv = ( range(sum(pops)) )
+    haplotype = ""
+    legend = "ID pos allele0 allele1\n"
+    sim_num = 1
+    while ms_sample is not None:
+        site_pos = translate_pos( ms_sample.pos, seg_len )
+        haplotype += impute_haplotype_transposer( ms_sample, indv )
+        legend += impute_legend ( out, site_pos, sim_num )
+        ms_sample = ms_file.next_sim()
+        sim_num += 1
+    f1 = file_names[0]
+    f2 = file_names[1]
+    file = open(f1, "w")
+    file.write(haplotype)
+    file.close()
+    file = open(f2, "w")
+    file.write(legend)
+    file.close()
+    if printer is True:
+        out.write(haplotype)
+        out.write("\n")
+        out.write(legend)
+
+def main(argv=None):
+        
+    if argv is None:
+        argv = sys.argv
+
+    usage = 'ms_impute [OPTIONS] [ms_output_file]'
+    parser = optparse.OptionParser(usage=usage)
+    
+    parser.add_option('-f', '--file', nargs=2, default='impute.hap.txt' 'impute.legend.txt', dest='filenames', 
+                      help='Name of the impute haplotype and the impute legend file.')
+    parser.add_option('-p', action='store_true', dest='printer', default='False', 
+                      help='Prints the impute haplotype matrix and the legend. Default = False')
+
+    (options, args) = parser.parse_args()
+
+    # Read from standard in by default.
+    ms_in = sys.stdin
+
+    if len(args) > 0:
+        ms_in = open(args[0],'r')
+
+    ms_file = ms.MSResult( ms_in )
+
+    file_names = options.filenames
+    printer = options.printer
+
+    process_ms_results( sys.stdout, ms_file, file_names, printer )
+
+    ms_in.close()
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+
+    
+    
