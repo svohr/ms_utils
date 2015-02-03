@@ -1,0 +1,89 @@
+#! /usr/bin/python
+"""
+ms2fasta
+
+This script takes the output from an MS simulation run and produces a set of
+fasta sequences to represent the segregating sites in the sampled chromosomes.
+
+Sam Vohr (svohr@soe.ucsc.edu)
+Mon Feb  2 10:51:38 PST 2015
+"""
+
+
+import argparse
+import sys
+
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+
+import ms
+import fasta
+
+
+def base_to_seq(hap, base_pos, base_len):
+    """ Produces a string of length 'base_len' with A indicating a fixed base
+        C indicating an ancestral base at a polymorphic position and G 
+        indicating a derived base. """
+    cur_site = 0
+    cur_base = 0
+    seq_parts = list()
+    while cur_site < len(base_pos):
+        # fill in the empty space
+        seq_parts.append('A' * (base_pos[cur_site] - cur_base))
+        if (hap[cur_site] == '0'):
+            seq_parts.append('C')
+        else:
+            seq_parts.append('G')
+        cur_base = base_pos[cur_site] + 1
+        cur_site += 1
+    if cur_base < base_len:
+        seq_parts.append('A' * (base_len - cur_base))
+    return ''.join(seq_parts)
+
+
+def process_ms_results(out, ms_file):
+    """ Build fasta sequences for each  """
+    ms_sample = ms_file.next_sim()
+    sim_num = 1
+    while ms_sample is not None:
+        hap_num = 1
+        for hap in ms_sample.genotypes:
+            seq = base_to_seq(hap, ms_sample.base_pos, ms_sample.base_len)
+            seq_rec = SeqRecord(Seq(seq) , 'hap%d_chr%d' % (hap_num, sim_num),
+                                '', '')
+            SeqIO.write(seq_rec, out, 'fasta')
+            hap_num += 1
+        ms_sample = ms_file.next_sim()
+        sim_num += 1
+
+
+def main(argv=None):
+    """ 
+    Generates fasta sequences representing sampled chromosomes from an ms
+    simulation run.
+    """
+    if argv is None:
+        argv = sys.argv
+
+    usage = 'ms2psmc [OPTIONS] [ms_output_file]'
+    parser = argparse.ArgumentParser(usage)
+    parser.add_argument('ms_file', metavar='MS_FILE', nargs='?' )
+    args = parser.parse_args()
+
+    # Read from standard in by default.
+    ms_in = sys.stdin
+
+    if args.ms_file is not None:
+        ms_in = open(args.ms_file,'r')
+
+    ms_file = ms.MSResult( ms_in )
+    process_ms_results(sys.stdout, ms_file)
+
+    ms_in.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
