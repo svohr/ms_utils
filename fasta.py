@@ -10,6 +10,9 @@ import re
 import textwrap
 
 class FastaError(Exception):
+    """
+    Exception for reporting specific problems reading FASTA input.
+    """
     def __init__(self, value):
         self.value = value
     def __str__(self):
@@ -51,6 +54,10 @@ def read_seq ( fasta_in ):
 
 # Write a single sequence to a file.
 def write_seq( fasta_out, name, comment, sequence ):
+    """
+    Write a single fasta entry (name, comment, sequence) to the output stream.
+    Wraps sequences at 60 chars for readability.
+    """
     fasta_out.write( '>%s, %s\n' % (name, comment) )
     for line in textwrap.wrap( sequence, 60 ):
         fasta_out.write( '%s\n' % line )

@@ -21,27 +21,26 @@ import sys
 import ms
 
 
-
 def init_mats(pop_sizes):
     """ Makes a set of matrices to store d-statistics in """
     mats = dict()
     for i in xrange(len(pop_sizes)):
-        for j in xrange(i,len(pop_sizes)):
-            mats[i,j] = [ [0.0 for x in xrange(pop_sizes[j])] \
-                               for x in xrange(pop_sizes[i])  ] 
+        for j in xrange(i, len(pop_sizes)):
+            mats[i, j] = [[0.0 for _ in xrange(pop_sizes[j])]
+                               for _ in xrange(pop_sizes[i])] 
     return mats
 
-def diploid_pop_sizes( pop_sizes ):
+def diploid_pop_sizes(pop_sizes):
     """ Converts a list of population sizes to diploid population sizes """ 
-    return [ x / 2 for x in pop_sizes ]
+    return [x / 2 for x in pop_sizes]
 
-def diploidize( chrm_sample ):
+def diploidize(chrm_sample):
     """ takes a population sample of N chromosomes and makes N/2 diploid 
         individuals """
-    return zip( chrm_sample[0::2], chrm_sample[1::2] )
+    return zip(chrm_sample[0::2], chrm_sample[1::2])
 
 
-def het_count_incr ( site, indv1, indv2, neand ):
+def het_count_incr(site, indv1, indv2, neand):
     """ Determines how much this site should count based on the 
         heterozygosity of all three people. We can think of this as a 
         3D space where D comparisons can be made with all combinations of
@@ -57,119 +56,120 @@ def het_count_incr ( site, indv1, indv2, neand ):
         hets += 1
     return increments[hets]
 
-def is_derived( site, indv ):
+def is_derived(site, indv):
     """ Returns True if one of the alleles in this individual is derived """
     return (indv[0][site] == '1' or indv[1][site] == '1')
 
-def is_ancestral( site, indv ):
+def is_ancestral(site, indv):
     """ Returns True if one of the alleles in this individual is ancestral """
     return (indv[0][site] == '0' or indv[1][site] == '0')
 
-def count_abba_baba( indv1, indv2, neand ):
+def count_abba_baba(indv1, indv2, neand ):
     """ Returns the abba and baba counts for these 3 diploid individuals for
         this simulated chromosome. """
     abba = 0.0
     baba = 0.0 
-    for i in xrange( len( indv1[0] ) ):
-        if is_derived(i,neand):
+    for i in xrange(len(indv1[0])):
+        if is_derived(i, neand):
             increment = het_count_incr(i, indv1, indv2, neand)
             # Neandertal must be derived
-            if is_ancestral(i,indv1) and is_derived(i,indv2):
+            if is_ancestral(i, indv1) and is_derived(i, indv2):
                 abba += increment
-            if is_derived(i,indv1) and is_ancestral(i,indv2):
+            if is_derived(i, indv1) and is_ancestral(i, indv2):
                 baba += increment
     return abba, baba
 
-def update_pop_counts( pop1, pop2, neand, tot_abba, tot_baba ):
+def update_pop_counts(pop1, pop2, neand, tot_abba, tot_baba):
     """ Count abba and baba sites for every combination of simulated 
         individual in these two populations and update the running count. """
-    for i in xrange( len(pop1) ):
-        for j in xrange( len(pop2) ):
-            abba, baba = count_abba_baba( pop1[i], pop2[j], neand )
+    for i in xrange(len(pop1)):
+        for j in xrange(len(pop2)):
+            abba, baba = count_abba_baba(pop1[i], pop2[j], neand)
             tot_abba[i][j] += abba 
             tot_baba[i][j] += baba
     return # done.
 
 
-def process_ms_sim( ms_sample, abba_counts, baba_counts ):
+def process_ms_sim(ms_sample, abba_counts, baba_counts):
     """ Updates the total abba and baba counts with those from this sim """
     pops = ms_sample.pop_genotypes()
-    dip_pops = [ diploidize(p) for p in pops ]
+    dip_pops = [diploidize(p) for p in pops]
     # by convention, the last population is the Neandertal.
     # use only 1 individual from this population
     n_hum_pops = len(dip_pops) - 1
     neand = dip_pops[-1][0]
     # make comparisons between populations
     for i in xrange(n_hum_pops):
-        for j in xrange(i,n_hum_pops):
-            update_pop_counts( dip_pops[i], dip_pops[j], neand, \
-                               abba_counts[i,j], baba_counts[i,j] )
+        for j in xrange(i, n_hum_pops):
+            update_pop_counts(dip_pops[i], dip_pops[j], neand,
+                              abba_counts[i, j], baba_counts[i, j])
     return
 
 
-def process_ms_results( ms_file ):
+def process_ms_results(ms_file):
     """ Calculates d-stats for each simulation """
     sim_num = 1
     ms_sample = ms_file.next_sim()
     # get diploid population sizes just the humans, no "neandertal"
-    pop_sizes = diploid_pop_sizes( ms_file.pop_sizes()[:-1] )
-    abba_mats = init_mats( pop_sizes )  
-    baba_mats = init_mats( pop_sizes ) 
+    pop_sizes = diploid_pop_sizes(ms_file.pop_sizes()[:-1])
+    abba_mats = init_mats(pop_sizes)  
+    baba_mats = init_mats(pop_sizes) 
     while ms_sample is not None:
-        process_ms_sim( ms_sample, abba_mats, baba_mats ) 
+        process_ms_sim(ms_sample, abba_mats, baba_mats)
         ms_sample = ms_file.next_sim()
         sys.stderr.write('%d\n' % (sim_num))
         sim_num += 1
     # return final matrices
     return abba_mats, baba_mats
 
-def print_results_pairwise( abba_mats, baba_mats, prefix ):
+def print_results_pairwise(abba_mats, baba_mats, prefix):
+    """ Report D statistics for individual pairs. """
     fname_format = '%s.pop%%d-%%d.tab' % (prefix) 
-    for (i,j) in abba_mats.keys():
-        abba_mat = abba_mats[i,j]
-        baba_mat = baba_mats[i,j]
-        fname = fname_format % (i,j)
+    for (i, j) in abba_mats.keys():
+        abba_mat = abba_mats[i, j]
+        baba_mat = baba_mats[i, j]
+        fname = fname_format % (i, j)
         f_out = open(fname, 'w')
-        for a in xrange( len(abba_mat) ):
-            for b in xrange(a, len(abba_mat[a]) ):
+        for a in xrange(len(abba_mat)):
+            for b in xrange(a, len(abba_mat[a])):
                 dstat = float("NaN")
                 if (abba_mat[a][b] + baba_mat[a][b] > 0):
-                    dstat = (abba_mat[a][b] - baba_mat[a][b]) / \
-                            (abba_mat[a][b] + baba_mat[a][b])  
-                f_out.write('pop%d-pop%d\t%d\t%d\t%f\t%f\t%f\n' % \
-                          (i, j, a, b, abba_mat[a][b], baba_mat[a][b], dstat) )
+                    dstat = ((abba_mat[a][b] - baba_mat[a][b]) /
+                             (abba_mat[a][b] + baba_mat[a][b])) 
+                f_out.write('pop%d-pop%d\t%d\t%d\t%f\t%f\t%f\n' %
+                          (i, j, a, b, abba_mat[a][b], baba_mat[a][b], dstat))
         f_out.close()
     return
 
-def print_results_all( abba_mats, baba_mats, out ):
+def print_results_all(abba_mats, baba_mats, out):
     """ Prints all results as a table. """
-    for (i,j) in abba_mats.keys():
-        abba_mat = abba_mats[i,j]
-        baba_mat = baba_mats[i,j]
-        for a in xrange( len(abba_mat) ):
-            for b in xrange(a, len(abba_mat[a]) ):
+    for (i, j) in abba_mats.keys():
+        abba_mat = abba_mats[i, j]
+        baba_mat = baba_mats[i, j]
+        for a in xrange(len(abba_mat)):
+            for b in xrange(a, len(abba_mat[a])):
                 dstat = float("NaN")
                 if (abba_mat[a][b] + baba_mat[a][b] > 0):
-                    dstat = (abba_mat[a][b] - baba_mat[a][b]) / \
-                            (abba_mat[a][b] + baba_mat[a][b])  
-                out.write('pop%d-pop%d\t%d\t%d\t%f\t%f\t%f\n' % \
-                          (i, j, a, b, abba_mat[a][b], baba_mat[a][b], dstat) )
+                    dstat = ((abba_mat[a][b] - baba_mat[a][b]) /
+                             (abba_mat[a][b] + baba_mat[a][b]))
+                out.write('pop%d-pop%d\t%d\t%d\t%f\t%f\t%f\n' %
+                          (i, j, a, b, abba_mat[a][b], baba_mat[a][b], dstat))
     return
 
 
 def main(argv=None):
-    
+    """ Calculates raw D statistics on MS output. """ 
     if argv is None:
         argv = sys.argv
 
     usage = 'ms_dstat [OPTIONS] [ms_output_file]'
     parser = optparse.OptionParser(usage=usage)
     
-    parser.add_option('-o', '--out', default='ms_dstat', dest='prefix', \
+    parser.add_option('-o', '--out', default='ms_dstat', dest='prefix',
                       help='Output file prefix.' )
-    parser.add_option('-s', '--sep', action="store_true", default=False, \
-        dest='sep', \
-        help='Use separate output files for each population comparison.')
+    parser.add_option('-s', '--sep', action="store_true", default=False, 
+                      dest='sep', help='Use separate output files for each '
+                                       'population comparison.')
 #   parser.add_option('-s', '--size', default=100000, dest='size', \
 #                     help='Size of locus (in bases).')
     (opts, args) = parser.parse_args()
@@ -178,18 +178,18 @@ def main(argv=None):
     ms_in = sys.stdin
 
     if len(args) > 0:
-        ms_in = open(args[0],'r')
+        ms_in = open(args[0], 'r')
 
-    ms_file = ms.MSResult( ms_in )
+    ms_file = ms.MSResult(ms_in)
 
-    abba_mat, baba_mat = process_ms_results( ms_file )
+    abba_mat, baba_mat = process_ms_results(ms_file)
 
     ms_in.close()
    
     if opts.sep:
-        print_results_pairwise( abba_mat, baba_mat, opts.prefix )
+        print_results_pairwise(abba_mat, baba_mat, opts.prefix)
     else:
-        print_results_all( abba_mat, baba_mat, sys.stdout )
+        print_results_all(abba_mat, baba_mat, sys.stdout)
     return 0
 
 if __name__ == "__main__":

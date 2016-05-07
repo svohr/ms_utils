@@ -1,67 +1,78 @@
 #! /usr/bin/python
-# 
-# This script calculates the frequencies of alleles from ms simulations and 
-# produces a table with the frequencies for by population.
-#
-# Sam Vohr (svohr@soe.ucsc.edu)
-# October 20, 2012
+"""
+
+This script calculates the frequencies of alleles from ms simulations and 
+produces a table with the frequencies for by population.
+
+Sam Vohr (svohr@soe.ucsc.edu)
+October 20, 2012
+
+"""
+
 
 import optparse
 import sys
 import ms
 
-def all_pops( pops ):
+
+def all_pops(pops):
     """ expands the population sizes to the indexes of each member """
     indv = list()
     cur = 0
-    for p in pops:
-        indv.append(range(cur,cur + p))
-        cur += p
-    indv.append( range(sum(pops)) ) # Everybody
+    for pop in pops:
+        indv.append(range(cur, cur + pop))
+        cur += pop
+    indv.append(range(sum(pops))) # Everybody
     return indv
 
-def calc_freq_pop( ms_sample, indv, site ):
+
+def calc_freq_pop(ms_sample, indv, site):
     """ calculate the frequency for one site in one population """
     count = 0
     for i in indv:
         count += int(ms_sample.genotypes[i][site])
     return float(count) / len(indv)
 
-def calc_freq_site( ms_sample, pop_indv, site ):
-    """ returns the freqs for one site for all populations """
-    return [ calc_freq_pop(ms_sample, p, site) for p in pop_indv ]
 
-def write_sample_freq(out, ms_sample, pop_indv, name_format ):
+def calc_freq_site(ms_sample, pop_indv, site):
+    """ returns the freqs for one site for all populations """
+    return [calc_freq_pop(ms_sample, p, site) for p in pop_indv]
+
+
+def write_sample_freq(out, ms_sample, pop_indv, name_format):
     """ Writes an entry for each site in a sample """ 
-    for site in range( ms_sample.nsites ):
-        freqs = calc_freq_site( ms_sample, pop_indv, site )
-        name = name_format % (site+1) # Starts the sites numbers at 1
+    for site in range(ms_sample.nsites):
+        freqs = calc_freq_site(ms_sample, pop_indv, site)
+        name = name_format % (site + 1) # Starts the sites numbers at 1
         out.write('%s' % name)
-        for p in range( len(pop_indv) ):
-            if len(pop_indv[p]) == 1:
-                out.write('\t%d' % freqs[p])
-            elif len(pop_indv[p]) <= 100:
-                out.write('\t%.2f' % freqs[p])
+        for pop in range(len(pop_indv)):
+            if len(pop_indv[pop]) == 1:
+                out.write('\t%d' % freqs[pop])
+            elif len(pop_indv[pop]) <= 100:
+                out.write('\t%.2f' % freqs[pop])
             else:
-                out.write('\t%f' % freqs[p])
+                out.write('\t%f' % freqs[pop])
         out.write('\n')
 
-def process_ms_results( out, ms_file ):
+def process_ms_results(out, ms_file):
     """ Calculate and write the frequencies for all replicates """
     sim_num = 1
     ms_sample = ms_file.next_sim()
     pops = ms_file.pop_sizes()
     indv = all_pops(pops)
     while ms_sample is not None:
-        sim_num_str = ('%%0%dd' % ( len(str(ms_file.nreps)) )) % (sim_num) 
+        sim_num_str = ('%%0%dd' % (len(str(ms_file.nreps)))) % (sim_num) 
         name_format = \
             'sim%s\tsite%%0%dd' % (sim_num_str,len(str(ms_sample.nsites)))
-        write_sample_freq(out, ms_sample, indv, name_format ) 
+        write_sample_freq(out, ms_sample, indv, name_format) 
         ms_sample = ms_file.next_sim()
         sim_num += 1
 
 def main(argv=None):
-    
+    """ 
+    Calculates allele frequencies from MS simulations and produces a table
+    of allele frequency by population.
+    """
     if argv is None:
         argv = sys.argv
 
@@ -72,7 +83,7 @@ def main(argv=None):
 #                     help='Output file prefix.' )
 #   parser.add_option('-s', '--size', default=100000, dest='size', \
 #                     help='Size of locus (in bases).')
-    (opts, args) = parser.parse_args()
+    (_, args) = parser.parse_args()
 
     # Read from standard in by default.
     ms_in = sys.stdin
@@ -80,9 +91,9 @@ def main(argv=None):
     if len(args) > 0:
         ms_in = open(args[0],'r')
 
-    ms_file = ms.MSResult( ms_in )
+    ms_file = ms.MSResult(ms_in)
 
-    process_ms_results( sys.stdout, ms_file )
+    process_ms_results(sys.stdout, ms_file)
 
     ms_in.close()
     return 0

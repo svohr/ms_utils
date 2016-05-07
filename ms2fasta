@@ -18,7 +18,6 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 import ms
-import fasta
 
 
 def base_to_seq(hap, base_pos, base_len):

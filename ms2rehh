@@ -10,15 +10,15 @@ August 2012
 """
 
 import optparse
-import re
 import string
 import sys
-import os
 import collections
 
-TRAN_TAB = string.maketrans( '01', '12' )
 
-def translate_pos( positions, length ):
+TRAN_TAB = string.maketrans('01', '12')
+
+
+def translate_pos(positions, length):
     """ Converts the relative positions into base positions given the length
         of the locus. """
     # if we have more sites than the locus's length, change the length to 
@@ -27,65 +27,66 @@ def translate_pos( positions, length ):
         length = len(positions)
     # Make sure there are no double hits here. Shift sites that occur at the
     # same bases over by one.
-    bases = [ int( p * length ) for p in positions ] 
+    bases = [int(p * length) for p in positions] 
     base_count = collections.Counter(bases)
     while base_count.most_common(1)[0][1] > 1:
-        for b in base_count.keys():
+        for bsite in base_count.keys():
             i = 1
             # for each site over 1, move a site over to the next one.
-            while base_count[b] > 1:
-                base_count[b] -= 1
-                base_count[ (b+i) % length ] += 1
+            while base_count[bsite] > 1:
+                base_count[bsite] -= 1
+                base_count[(bsite + i) % length] += 1
                 i += 1
     return base_count.keys()
 
 
-def write_hap_file( hap_out, hap_lines ):
+def write_hap_file(hap_out, hap_lines):
     """ Writes the haplotypes into the REHH hap file format. Translates 
         0 = ancestral, 1 = derived into 1 = ancestral, 2 = derived. """
     hap_num = 1
     name_format = 'hap%%0%dd' % len(str(len(hap_lines)))
     for hap_line in hap_lines:
-        hap = list( hap_line.translate( TRAN_TAB ) )
+        hap = list(hap_line.translate(TRAN_TAB))
         # write out this haplotype
         hap_str = ' '.join(hap)
         hap_name = name_format % hap_num
-        hap_out.write( '%s %s\n' % (hap_name, hap_str) )
+        hap_out.write('%s %s\n' % (hap_name, hap_str))
         hap_num += 1
     return
 
-def write_map_file( map_out, site_positions, sample_num=1 ):
+def write_map_file(map_out, site_positions, sample_num=1):
     """ Writes a REHH map file for the simulated polymorphic sites """
     site_num = 1
     name_format = 'site%%0%dd' % len(str(len(site_positions)))
     for site_pos in sorted(site_positions):
         site_name = name_format % site_num
-        map_out.write( '%s %d %d 1 2\n' % (site_name, sample_num, site_pos) )
+        map_out.write('%s %d %d 1 2\n' % (site_name, sample_num, site_pos))
         site_num += 1
     return
 
-def process_sample_set( sample_name, sample_num, lines, length ):
+def process_sample_set(sample_name, sample_num, lines, length):
     """ Reads the data for a single sample """
-    sites_line = lines[0]
+    #sites_line = lines[0]
     # positions need to be read from the text.
-    positions = [ float(p) for p in lines[1].split()[1:] ]
+    positions = [float(p) for p in lines[1].split()[1:]]
     hap_lines = lines[2:]
-    base_pos = translate_pos( positions, length )
+    base_pos = translate_pos(positions, length)
     # write the .hap file.
     hap_file = open('%s.hap' % sample_name, 'w')
     write_hap_file( hap_file, hap_lines )
     hap_file.close()
     # write the .map file.
     map_file = open('%s.map' % sample_name, 'w')
-    write_map_file( map_file, base_pos, sample_num )
+    write_map_file(map_file, base_pos, sample_num)
     map_file.close()
     return
 
 
-def process_ms_input( ms_in, name, length ):
+def process_ms_input(ms_in, name, length):
     """ Processes all of the input from ms and writes out REHH .hap and .map 
         files for each replicate. """
-    sample_num = 0
+    sample_num  = 0
+    sample_name = ''
     cmd = ms_in.readline()
     cmd_items = cmd.split()
     replicates = int(cmd_items[2])
@@ -98,16 +99,17 @@ def process_ms_input( ms_in, name, length ):
         elif line.startswith('//'):
             # process the last sample set.
             if sample_lines is not None:
-                process_sample_set( sample_name, sample_num, sample_lines, length )
+                process_sample_set(sample_name, sample_num, 
+                                   sample_lines, length)
             # start a new sample set 
             sample_num += 1
             sample_name = name_format % sample_num
             sample_lines = list()
         elif sample_lines is not None:
-            sample_lines.append( line )
+            sample_lines.append(line)
     # process the final simulation.
     if sample_lines is not None and sample_lines != []:
-        process_sample_set( sample_name, sample_num, sample_lines, length )
+        process_sample_set(sample_name, sample_num, sample_lines, length)
     return
 
 
@@ -120,9 +122,9 @@ def main(argv=None):
     usage = 'ms2rehh [OPTIONS] [ms_output_file]'
     parser = optparse.OptionParser(usage=usage)
     
-    parser.add_option('-o', '--out', default='sim', dest='prefix', \
+    parser.add_option('-o', '--out', default='sim', dest='prefix',
                       help='Output file prefix.' )
-    parser.add_option('-s', '--size', default=1000000, dest='size', \
+    parser.add_option('-s', '--size', default=1000000, dest='size',
                       help='Size of locus (in bases).')
     (opts, args) = parser.parse_args()
 
@@ -132,10 +134,11 @@ def main(argv=None):
     if len(args) > 0:
         ms_in = open(args[0],'r')
 
-    process_ms_input( ms_in, opts.prefix, int(opts.size) )
+    process_ms_input(ms_in, opts.prefix, int(opts.size))
 
     ms_in.close()
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
